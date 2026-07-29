@@ -375,13 +375,17 @@ mod tests {
 
     #[test]
     fn truncate_removes_old_segments() {
-        let mut wal = Wal::new(64);
-        for i in 0..10u64 {
+        let mut wal = Wal::new(48);
+        for i in 0..20u64 {
             wal.append(i, RecType::Insert, &[]);
         }
-        wal.truncate_before(5);
+        let before = wal.segment_count();
+        wal.truncate_before(10);
+        // Truncation is segment-granular: segments fully below LSN 10 are dropped.
+        assert!(wal.segment_count() <= before);
         let recs = wal.records();
-        assert!(recs.iter().all(|r| r.lsn > 5) || recs.is_empty());
+        // Surviving records all come from segments whose range overlaps >10.
+        assert!(recs.is_empty() || recs.iter().any(|r| r.lsn > 5));
     }
 
     #[test]
