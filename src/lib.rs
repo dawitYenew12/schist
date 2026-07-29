@@ -36,6 +36,7 @@
 pub mod array;
 pub mod bitmap;
 pub mod btree;
+pub mod compress;
 pub mod diag;
 pub mod encoding;
 pub mod error;
