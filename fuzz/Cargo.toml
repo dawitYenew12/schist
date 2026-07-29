@@ -1,0 +1,38 @@
+[package]
+name = "schist-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2021"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+
+[dependencies.schist]
+path = ".."
+
+# Prevent this from interfering with workspace discovery of the parent crate.
+[workspace]
+
+[[bin]]
+name = "query_fuzzer"
+path = "fuzz_targets/query_fuzzer.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "decode_fuzzer"
+path = "fuzz_targets/decode_fuzzer.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "script_fuzzer"
+path = "fuzz_targets/script_fuzzer.rs"
+test = false
+doc = false
+bench = false

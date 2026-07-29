@@ -1,0 +1,30 @@
+[package]
+name = "schist"
+version = "0.1.0"
+edition = "2021"
+description = "An original columnar storage engine with a self-describing binary page format and an operation script, written in dependency-free Rust."
+license = "MIT"
+readme = "README.md"
+repository = "https://example.invalid/schist"
+keywords = ["columnar", "storage", "database", "decoder", "fuzzing"]
+categories = ["data-structures", "parser-implementations"]
+
+[lib]
+name = "schist"
+path = "src/lib.rs"
+
+[[bin]]
+name = "schist"
+path = "src/bin/schist.rs"
+
+[dependencies]
+# Intentionally dependency-free: the crate builds from a clean checkout with no
+# network access, which keeps the fuzz build deterministic.
+
+[profile.release]
+# Keep debug info in release builds so AddressSanitizer / addr2line resolve
+# project frames when the fuzz harness is built with a sanitizer.
+debug = true
+
+[profile.dev]
+opt-level = 0

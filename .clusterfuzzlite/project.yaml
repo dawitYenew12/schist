@@ -1,0 +1,10 @@
+language: rust
+fuzzing_engines:
+  - libfuzzer
+sanitizers:
+  - address
+architecture: x86_64
+fuzz_targets:
+  - query_fuzzer
+  - decode_fuzzer
+  - script_fuzzer
