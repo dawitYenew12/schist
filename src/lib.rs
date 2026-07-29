@@ -33,6 +33,7 @@
 #![allow(clippy::needless_range_loop)]
 #![allow(clippy::manual_range_contains)]
 
+pub mod analyze;
 pub mod arena;
 pub mod array;
 pub mod bitmap;
@@ -45,6 +46,7 @@ pub mod pattern;
 pub mod radix;
 pub mod roaring;
 pub mod skiplist;
+pub mod slab;
 pub mod sql;
 pub mod text;
 pub mod checksum;
