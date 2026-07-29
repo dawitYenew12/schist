@@ -1486,4 +1486,61 @@ This determinism is what makes the engine fuzzable in the first place: a crashin
 input reproduces exactly, every time, which is a prerequisite for both the fuzzer
 finding a fault and a fix being verified against it.
 
+---
+
+## Appendix G. Reading order
+
+The engine is large; a reader coming to it fresh will get the most out of it by
+following the data rather than the module list. A suggested path:
+
+1. **Start at the entry point.** Read `run_combined` and `split_combined` in
+   `lib.rs`. That is the whole pipeline in a dozen lines: split the blob, decode,
+   verify, run the script.
+
+2. **Follow a decode.** Read `format::decode`, then `schema`, then `pager`'s page
+   construction. This is how bytes become a `Database`. Note where the decoder
+   stops checking and hands off to the verifier.
+
+3. **Read the verifier.** `verify::verify` enumerates the decode-time invariants
+   (section 23, rows keyed to decode time). Understanding what the verifier does
+   *not* have to check — because it is a runtime, not a decode-time, property — is
+   as important as understanding what it does.
+
+4. **Follow one statement.** Pick `insert` and read `mutation`'s insert path all
+   the way down: the free-space map, the dictionary interning, the slot write, the
+   row-id-map update, the index update, the zone-map update. This is where the
+   subsystems meet.
+
+5. **Read the two space-reclamation paths.** `compact`'s split/merge and its RLE
+   repack, and how each leaves the row-id map. This is the most subtle code in the
+   engine, because it moves rows and must keep every other structure pointing at
+   their new homes.
+
+6. **Read a probe.** `query::index_scan` and the `index` fast path, then the
+   pager accessor it bottoms out in. This closes the loop from a value back to
+   the bytes that hold it.
+
+Everything else — the sketches, the codecs, the SQL front end, the auxiliary data
+structures — is supporting cast. It is real and it is used, but the heart of the
+engine is the six steps above, and the interesting behavior is in how they
+compose.
+
+### Layer summary
+
+```text
+  script / SQL          the operations a user expresses
+  ────────────────────────────────────────────────────────
+  mutation / compact    carry operations out, moving rows and space
+  query / vexec         read operations produce results
+  ────────────────────────────────────────────────────────
+  index  dict  rowid    structures that locate values and rows
+  fsm    zonemap        structures that track space and ranges
+  ────────────────────────────────────────────────────────
+  pager                 raw page bytes and the unsafe accessors
+```
+
+Operations flow down from the top; bytes flow up from the bottom; and the
+invariants in section 23 are the contracts between the layers that keep the two
+directions consistent.
+
 
