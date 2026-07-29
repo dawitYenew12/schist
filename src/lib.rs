@@ -43,6 +43,7 @@ pub mod pattern;
 pub mod radix;
 pub mod roaring;
 pub mod skiplist;
+pub mod sql;
 pub mod checksum;
 pub mod compress;
 pub mod csvio;
