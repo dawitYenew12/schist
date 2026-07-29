@@ -103,22 +103,27 @@ pub fn nested_loop_join(
             if op.apply(&lv, &rv) {
                 any = true;
                 matched_left[i] = true;
-                emit_join(&mut out, lrow, rrow, kind);
+                // Semi/anti are resolved after the loop based on `any`.
+                if !matches!(kind, JoinKind::Semi | JoinKind::Anti) {
+                    emit_join(&mut out, lrow, rrow, kind);
+                }
             }
         }
         if !any && matches!(kind, JoinKind::LeftOuter | JoinKind::FullOuter) {
             let null_right = vec![Value::Null; right.first().map_or(0, |r| r.len())];
             emit_join(&mut out, lrow, &null_right, kind);
         }
-        if matches!(kind, JoinKind::Anti) && !any {
-            emit_join(&mut out, lrow, &[], kind);
-        }
     }
+    // Resolve semi/anti after the full scan.
     if matches!(kind, JoinKind::Semi) {
-        // Already emitted via the any-branch path above; redo cleanly.
-        out.clear();
         for (i, lrow) in left.iter().enumerate() {
             if matched_left[i] {
+                emit_join(&mut out, lrow, &[], kind);
+            }
+        }
+    } else if matches!(kind, JoinKind::Anti) {
+        for (i, lrow) in left.iter().enumerate() {
+            if !matched_left[i] {
                 emit_join(&mut out, lrow, &[], kind);
             }
         }
