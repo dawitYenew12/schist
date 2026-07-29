@@ -38,6 +38,7 @@ pub mod btree;
 pub mod diag;
 pub mod encoding;
 pub mod error;
+pub mod expr;
 pub mod hashindex;
 pub mod format;
 pub mod fsm;
