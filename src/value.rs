@@ -88,6 +88,12 @@ impl Value {
 
 impl Eq for Value {}
 
+impl Default for Value {
+    fn default() -> Self {
+        Value::Null
+    }
+}
+
 impl PartialOrd for Value {
     fn partial_cmp(&self, other: &Value) -> Option<Ordering> {
         Some(self.total_cmp(other))
