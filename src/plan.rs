@@ -336,6 +336,24 @@ mod tests {
 
     #[test]
     fn plan_join_picks_hash_for_small() {
+        let small = PlanStats {
+            table_rows: 500.0,
+            column_stats: vec![ColumnStats::default()],
+            indexed_cols: vec![false],
+        };
+        let logical = LogicalNode::Join {
+            left: Box::new(LogicalNode::Scan { table: "a".into() }),
+            right: Box::new(LogicalNode::Scan { table: "b".into() }),
+            left_col: 0,
+            right_col: 0,
+        };
+        let phys = plan(&logical, &small);
+        assert!(matches!(phys, PhysicalNode::HashJoin { .. }));
+    }
+
+    #[test]
+    fn plan_join_picks_sort_merge_for_large() {
+        // With ten-thousand-row inputs the planner prefers a sort-merge join.
         let logical = LogicalNode::Join {
             left: Box::new(LogicalNode::Scan { table: "a".into() }),
             right: Box::new(LogicalNode::Scan { table: "b".into() }),
@@ -343,7 +361,7 @@ mod tests {
             right_col: 0,
         };
         let phys = plan(&logical, &stats());
-        assert!(matches!(phys, PhysicalNode::HashJoin { .. }));
+        assert!(matches!(phys, PhysicalNode::SortMergeJoin { .. }));
     }
 
     #[test]
