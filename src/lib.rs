@@ -33,6 +33,7 @@
 #![allow(clippy::needless_range_loop)]
 #![allow(clippy::manual_range_contains)]
 
+pub mod array;
 pub mod bitmap;
 pub mod btree;
 pub mod diag;
