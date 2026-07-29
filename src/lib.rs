@@ -52,6 +52,7 @@ pub mod rowid;
 pub mod schema;
 pub mod script;
 pub mod sort;
+pub mod stats;
 pub mod value;
 pub mod verify;
 pub mod wal;
