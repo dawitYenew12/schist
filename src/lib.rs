@@ -60,6 +60,7 @@ pub mod window;
 pub mod zonemap;
 pub mod dict;
 pub mod compact;
+pub mod txn;
 
 pub use error::{Error, Result};
 pub use pager::Database;
