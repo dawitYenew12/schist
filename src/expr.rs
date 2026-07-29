@@ -480,7 +480,7 @@ impl TokParser {
         }
     }
     fn parse_atom(&mut self) -> Result<Expr, String> {
-        let t = self.next().ok_or("unexpected end of expression")?;
+        let t = self.next().ok_or("unexpected end of expression")?.to_string();
         if t == "(" {
             let e = self.parse_or()?;
             match self.next() {
@@ -500,26 +500,22 @@ impl TokParser {
             Ok(Expr::Lit(Value::Int(i)))
         } else if let Ok(r) = t.parse::<f64>() {
             Ok(Expr::Lit(Value::Real(r)))
-        } else if let Some(next) = self.peek() {
-            if next == "(" {
-                self.next();
-                let mut args = Vec::new();
-                if self.peek() != Some(")") {
+        } else if self.peek() == Some("(") {
+            self.next();
+            let mut args = Vec::new();
+            if self.peek() != Some(")") {
+                args.push(self.parse_or()?);
+                while self.peek() == Some(",") {
+                    self.next();
                     args.push(self.parse_or()?);
-                    while self.peek() == Some(",") {
-                        self.next();
-                        args.push(self.parse_or()?);
-                    }
                 }
-                match self.next() {
-                    Some(")") => Ok(Expr::Func { name: t.to_string(), args }),
-                    _ => Err("expected )".into()),
-                }
-            } else {
-                Ok(Expr::ColName(t.to_string()))
+            }
+            match self.next() {
+                Some(")") => Ok(Expr::Func { name: t, args }),
+                _ => Err("expected )".into()),
             }
         } else {
-            Ok(Expr::ColName(t.to_string()))
+            Ok(Expr::ColName(t))
         }
     }
 }
@@ -574,6 +570,22 @@ fn lex(src: &str) -> Vec<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::collections::HashMap;
+
+    struct MapNames(HashMap<String, usize>);
+    impl NameTable for MapNames {
+        fn resolve(&self, name: &str) -> Option<usize> {
+            self.0.get(name).copied()
+        }
+    }
+
+    fn names(pairs: &[(&str, usize)]) -> MapNames {
+        let mut m = HashMap::new();
+        for &(n, i) in pairs {
+            m.insert(n.to_string(), i);
+        }
+        MapNames(m)
+    }
 
     #[test]
     fn parse_and_eval_arith() {
@@ -584,22 +596,24 @@ mod tests {
     #[test]
     fn parse_and_eval_cmp() {
         let e = parse("x > 5").unwrap();
-        assert_eq!(eval(&e, &[Value::Int(0), Value::Int(10)]), Ok(Value::Bool(true)));
+        let n = names(&[("x", 1)]);
+        assert_eq!(eval_with(&e, &[Value::Int(0), Value::Int(10)], &n), Ok(Value::Bool(true)));
     }
 
     #[test]
     fn parse_and_eval_logic() {
         let e = parse("x > 0 AND y > 0").unwrap();
+        let n = names(&[("x", 1), ("y", 2)]);
         let row = [Value::Int(0), Value::Int(3), Value::Int(4)];
-        assert_eq!(eval(&e, &row), Ok(Value::Bool(true)));
+        assert_eq!(eval_with(&e, &row, &n), Ok(Value::Bool(true)));
     }
 
     #[test]
-    fn parse_and_eval_case() {
-        // CASE is encoded via a function-style parse here; test coalesce instead.
+    fn parse_and_eval_coalesce() {
         let e = parse("COALESCE(a, b, 0)").unwrap();
+        let n = names(&[("a", 1), ("b", 2)]);
         let row = [Value::Int(0), Value::Null, Value::Int(9)];
-        assert_eq!(eval(&e, &row), Ok(Value::Int(9)));
+        assert_eq!(eval_with(&e, &row, &n), Ok(Value::Int(9)));
     }
 
     #[test]
@@ -617,6 +631,7 @@ mod tests {
     #[test]
     fn eval_not() {
         let e = parse("NOT x").unwrap();
-        assert_eq!(eval(&e, &[Value::Int(0), Value::Bool(false)]), Ok(Value::Bool(true)));
+        let n = names(&[("x", 1)]);
+        assert_eq!(eval_with(&e, &[Value::Int(0), Value::Bool(false)], &n), Ok(Value::Bool(true)));
     }
 }
