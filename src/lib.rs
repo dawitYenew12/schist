@@ -61,6 +61,7 @@ pub mod zonemap;
 pub mod dict;
 pub mod compact;
 pub mod txn;
+pub mod vexec;
 
 pub use error::{Error, Result};
 pub use pager::Database;
