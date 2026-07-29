@@ -1370,4 +1370,120 @@ row-id map, zone map, and the pager accessors underneath — is the same one the
 `query_fuzzer` drives for every input, and it is where the engine's behavior is
 determined by the interaction of the pieces rather than by any one of them alone.
 
+---
+
+## Appendix D. Query planning, end to end
+
+A SQL query and an operation script are two ways to reach the same operators.
+This appendix traces a SQL query through the front end so the relationship between
+the modules in section 19 is concrete.
+
+Take `SELECT name, COUNT(*) FROM t WHERE score > 50 GROUP BY name ORDER BY
+COUNT(*) DESC LIMIT 10`.
+
+1. **Lexing.** `sql::Lexer` turns the text into tokens: the keywords `SELECT`,
+   `FROM`, `WHERE`, `GROUP`, `BY`, `ORDER`, `DESC`, `LIMIT`; the identifiers
+   `name`, `t`, `score`; the aggregate `COUNT`; the operator `>`; and the
+   integers `50` and `10`. Whitespace and `--` comments are skipped, and string
+   and quoted-identifier literals are recognized.
+
+2. **Parsing.** `sql::Parser` consumes the tokens with a recursive-descent
+   statement parser and a Pratt expression parser. The result is a `SelectStmt`
+   with its projection items (`name`, and the aggregate `COUNT(*)`), its `from`
+   table, its `filter` expression (`score > 50`), its `group_by` list (`name`),
+   its `order_by` list (`COUNT(*)` descending), and its `limit` (10). Operator
+   precedence is handled by the Pratt parser's binding powers, so `a = 1 AND b >
+   2 OR c < 3` groups as `(a = 1 AND b > 2) OR (c < 3)`.
+
+3. **Lowering.** `logical::LogicalPlan::from_select` builds the logical tree
+   bottom-up: a `Scan` of `t`, wrapped in a `Filter` on `score > 50`, wrapped in
+   an `Aggregate` grouping by `name` and computing `COUNT(*)`, wrapped in a
+   `Sort` on the count descending, wrapped in a `Limit` of 10. Because the query
+   has an aggregate, the projection is folded into the aggregate node rather than
+   a separate `Project`.
+
+4. **Optimizing.** `logical::Optimizer` runs rewrite rules to a fixpoint. It folds
+   constants in the predicate, splits conjunctive filters and pushes each conjunct
+   as far down the tree as it can, collapses adjacent filters and projections, and
+   drops always-true filters. For this query the filter is already directly above
+   the scan, so pushdown is a no-op, but the rule set is what would move a filter
+   below a projection in a more complex plan.
+
+5. **Costing.** `cost::CostModel` walks the optimized plan bottom-up. The scan's
+   cardinality comes from `t`'s row count; the filter's from the scan's rows times
+   the range selectivity of `score > 50` (a third by default, or `1/ndv`-derived
+   if statistics are present); the aggregate's from a distinct-groups heuristic;
+   and the limit caps the final row estimate at 10. Each node also accrues a cost
+   in abstract units (row touches plus a page-I/O surcharge on the scan).
+
+6. **Physical planning.** `plan` turns the logical plan into physical operators,
+   choosing a scan path (sequential, or an index scan if `score` were indexed and
+   the predicate were an equality) and, for a join, a join algorithm from the
+   cardinality estimates — hash join when one side is small, sort-merge for larger
+   balanced inputs, nested-loop only for tiny inputs.
+
+The operation script skips the front end and drives the operators directly, which
+is why it is the fuzzer's route: it reaches the mutation, compaction, and index
+machinery with the least ceremony.
+
+---
+
+## Appendix E. Why the unsafe core is where it is
+
+Rust's safety guarantees mean that a memory-safety fault can only originate at an
+`unsafe` boundary. `schist` confines that boundary to the pager's page accessors,
+and the reasoning behind that choice is worth stating, because it shapes how the
+whole engine is meant to be read.
+
+A page's bytes are a flat buffer, and the structures that give those bytes meaning
+— the slot directory, the row-id map, the dictionary's id-to-offset mapping, the
+index's cached references — are integers and offsets computed by higher layers.
+The pager's accessors take such an integer or offset and return the bytes it
+points at. They are correct exactly when their inputs are valid: a slot index
+within the current slot directory, an offset within the page buffer, a pointer
+into a live page. They cannot themselves check validity in general, because
+"valid" is defined by the higher-level structure that produced the input, not by
+anything local to the page.
+
+This means the interesting correctness conditions are not *in* the pager; they are
+in the agreements between the subsystems that feed it. The row-id map must agree
+with the slot directories. The index's cached references must agree with the
+dictionary pages and generations they were captured against. The compaction
+routines must leave every surviving row reachable at the slot the row-id map names
+for it. Each of these is a property of a *sequence* of updates across subsystems,
+preserved by the operation that performs them, and none of them is visible by
+reading the pager alone — the pager just does what it is told.
+
+Concentrating `unsafe` in one small, heavily-used module is therefore not a way to
+make the memory model trivial; it is a way to make it *legible*. Every raw access
+in the engine goes through a handful of accessors, so the question "could this
+access be out of bounds or stale?" always reduces to "was the offset or slot or
+generation that reached this accessor kept consistent by the operations that ran
+before it?" — a question about the cross-subsystem invariants in section 23, not
+about scattered pointer arithmetic. That is the intended way to reason about the
+engine, and it is why the accessors are small, uncommented about their callers'
+assumptions, and used everywhere.
+
+---
+
+## Appendix F. Notes on determinism and reproducibility
+
+Everything in `schist` that could introduce nondeterminism is pinned:
+
+- The internal random-number generators — skip-list promotion heights, reservoir
+  sampling, the hash-coefficient seeds in `minhash` — are seeded from fixed
+  constants, so two runs over the same input produce identical structures.
+- The decoder is a pure function of its input bytes; there is no reliance on
+  allocation addresses, iteration order of a `HashMap` for anything observable,
+  or wall-clock time.
+- Hash-based structures that iterate for output (`catalog` listings, `dsu`
+  classes, `partition` histograms) sort before returning, so their observable
+  order does not depend on hasher state.
+- The build has no network access, no code generation, and no environment
+  dependence beyond the Rust toolchain.
+
+This determinism is what makes the engine fuzzable in the first place: a crashing
+input reproduces exactly, every time, which is a prerequisite for both the fuzzer
+finding a fault and a fix being verified against it.
+
 
