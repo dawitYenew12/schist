@@ -37,6 +37,8 @@ pub mod array;
 pub mod bitmap;
 pub mod bloom;
 pub mod btree;
+pub mod bufferpool;
+pub mod pattern;
 pub mod checksum;
 pub mod compress;
 pub mod csvio;
