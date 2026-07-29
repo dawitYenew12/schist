@@ -1,0 +1,1 @@
+insert 0 1; insert 0 2; insert 0 3; delete where x < 2; compact; scan;
