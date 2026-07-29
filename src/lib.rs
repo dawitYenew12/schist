@@ -43,6 +43,7 @@ pub mod hashindex;
 pub mod format;
 pub mod fsm;
 pub mod index;
+pub mod join;
 pub mod mutation;
 pub mod pager;
 pub mod query;
