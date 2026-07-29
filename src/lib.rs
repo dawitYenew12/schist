@@ -33,8 +33,10 @@
 #![allow(clippy::needless_range_loop)]
 #![allow(clippy::manual_range_contains)]
 
+pub mod arena;
 pub mod array;
 pub mod bitmap;
+pub mod bitset;
 pub mod bloom;
 pub mod btree;
 pub mod bufferpool;
@@ -60,6 +62,7 @@ pub mod fsm;
 pub mod index;
 pub mod join;
 pub mod logical;
+pub mod lru;
 pub mod mutation;
 pub mod pager;
 pub mod query;
@@ -70,6 +73,7 @@ pub mod script;
 pub mod sort;
 pub mod stats;
 pub mod value;
+pub mod varint;
 pub mod verify;
 pub mod wal;
 pub mod window;
