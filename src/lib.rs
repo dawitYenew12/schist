@@ -34,6 +34,7 @@
 #![allow(clippy::manual_range_contains)]
 
 pub mod diag;
+pub mod encoding;
 pub mod error;
 pub mod format;
 pub mod fsm;
