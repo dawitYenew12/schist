@@ -35,8 +35,12 @@
 
 pub mod array;
 pub mod bitmap;
+pub mod bloom;
 pub mod btree;
+pub mod checksum;
 pub mod compress;
+pub mod decimal;
+pub mod temporal;
 pub mod diag;
 pub mod encoding;
 pub mod error;
