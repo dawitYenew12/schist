@@ -92,6 +92,7 @@ pub enum Func {
     IsNotNull,
     IfNull,
     Cast,
+    Coalesce,
 }
 
 impl Func {
@@ -107,6 +108,7 @@ impl Func {
             "isnotnull" => Some(Func::IsNotNull),
             "ifnull" => Some(Func::IfNull),
             "cast" => Some(Func::Cast),
+            "coalesce" => Some(Func::Coalesce),
             _ => None,
         }
     }
@@ -354,6 +356,17 @@ fn call(func: Func, args: &[Value]) -> Result<Value, EvalError> {
             }
             // The second argument is the target kind id (int/real/bool/text).
             Ok(args[0])
+        }
+        Func::Coalesce => {
+            if args.is_empty() {
+                return Err(EvalError::Arity { func: "coalesce".into(), got: 0 });
+            }
+            for &v in args {
+                if !v.is_null() {
+                    return Ok(v);
+                }
+            }
+            Ok(Value::Null)
         }
     }
 }
