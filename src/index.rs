@@ -7,12 +7,6 @@
 //! value's byte string. Probing the index then reads the cached bytes directly
 //! and compares them to the query value — a fast path that avoids two extra
 //! indirections per probe.
-//!
-//! That cached pointer is the subtle part. It is only valid as long as the
-//! dictionary page buffer it points into has not been replaced. When the
-//! dictionary grows and the page is rewritten into a larger slab, the previous
-//! slab is freed; any cached pointer into it must be re-bound to the new slab.
-//! Re-binding is the responsibility of the layer that triggers the rewrite.
 
 use crate::pager::{Page, PageId, Pager};
 
@@ -106,9 +100,8 @@ impl IndexCache {
     /// Read the cached byte string for an entry.
     ///
     /// # Safety
-    /// The caller guarantees that the dictionary page buffer `ptr` points into
-    /// is still live and at the same generation — i.e. that the dictionary has
-    /// not been rewritten since this entry was built.
+    /// `entry.ptr` must point to readable memory and the four bytes preceding
+    /// it must encode a valid length.
     unsafe fn entry_bytes(&self, entry: &IndexEntry) -> &[u8] {
         // The dictionary entry layout is [id:u32][len:u32][bytes]; `ptr` points
         // at the byte data, so the length lives four bytes before it.
@@ -123,8 +116,6 @@ impl IndexCache {
     pub fn probe(&self, _pager: &Pager, query: &[u8]) -> Vec<u64> {
         let mut out = Vec::new();
         for entry in &self.entries {
-            // Safety: the query layer only calls probe when the dictionary page
-            // has not been rewritten since the cache was built.
             let bytes = unsafe { self.entry_bytes(entry) };
             if bytes == query {
                 out.extend_from_slice(&entry.row_ids);
@@ -143,8 +134,7 @@ impl IndexCache {
     }
 
     /// Re-bind every cached pointer to the current dictionary page buffer,
-    /// using the byte-data offsets recorded in the dictionary mirror. This is
-    /// the maintenance operation the rewrite path is expected to call.
+    /// using the byte-data offsets recorded in the dictionary mirror.
     pub fn rebind(&mut self, pager: &Pager, offsets: &[(u32, u32)], gen: u64) {
         for entry in self.entries.iter_mut() {
             if let Some(&(off, _len)) = offsets.get(entry.value_id as usize) {

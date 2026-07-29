@@ -7,13 +7,9 @@
 //! the database.
 //!
 //! The unsafe accessors here are deliberately narrow: [`Page::raw_ptr`] hands
-//! out a pointer into a page's buffer (used by the index cache to avoid an
-//! extra indirection when comparing dictionary values), and
-//! [`Page::slot_at_unchecked`] reads a slot directory entry by index without a
-//! bounds check (used by the row-id fast path, which trusts the row-id map to
-//! supply in-range slot indices). Both are `unsafe` because their correctness
-//! depends on invariants maintained by *other* subsystems, not on anything
-//! visible inside this file.
+//! out a pointer into a page's buffer, and [`Page::slot_at_unchecked`] reads a
+//! slot directory entry by index without a bounds check. Both are `unsafe`
+//! because their correctness is the caller's responsibility.
 
 use crate::dict::Dict;
 use crate::fsm::Fsm;
@@ -187,9 +183,7 @@ impl Page {
     }
 
     /// # Safety
-    /// `idx` must be less than the slot directory length. Callers (the row-id
-    /// fast path) are expected to supply slot indices that are in range by
-    /// construction.
+    /// `idx` must be less than the slot directory length.
     pub unsafe fn slot_at_unchecked(&self, idx: usize) -> SlotEntry {
         let dir = self
             .slot_dir

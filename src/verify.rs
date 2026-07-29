@@ -8,10 +8,8 @@
 //! every free-space-map page is live, and that every zone-map entry references
 //! a live data page.
 //!
-//! It deliberately does not re-run after each script statement: the invariants
-//! it checks are static. The two invariants the engine violates are dynamic —
-//! they only come into being after a sequence of mutations — so they are
-//! invisible to this checker by construction.
+//! It does not re-run after each script statement; it is a one-time
+//! post-decode gate.
 
 use crate::error::{Error, Result, VerifyError};
 use crate::pager::PageKind;
@@ -137,9 +135,6 @@ fn check_zone_maps(db: &Database) -> Result<()> {
 }
 
 fn check_index_gens(db: &Database) -> Result<()> {
-    // At decode time each index cache entry's generation must match the current
-    // generation of its dictionary page. (Divergence only arises later, during
-    // mutation, which is exactly when this checker is no longer run.)
     for idx in db.indexes.iter().flatten() {
         let page = match db.pager.get(idx.dict_page) {
             Some(p) => p,

@@ -2,9 +2,7 @@
 //!
 //! The mutation layer appends rows to data pages, resolves text values through
 //! dictionary pages, and keeps the row-id map and the secondary indexes in
-//! sync with the data. It is also the layer that grows a dictionary page when a
-//! new distinct text value does not fit — the operation that frees the previous
-//! dictionary slab and bumps its generation.
+//! sync with the data.
 
 use crate::error::{Error, Result, ScriptError};
 use crate::format::{
@@ -403,12 +401,10 @@ pub fn read_row_cell(db: &Database, row_id: u64, col: usize) -> Option<Value> {
 
 /// Read a cell using the row-id fast path's unchecked slot accessor.
 ///
-/// This is the path used by id-driven scans and lookups. It trusts the row-id
-/// map to supply a slot index that is in range for the page's slot directory.
+/// This is the path used by id-driven scans and lookups.
 pub fn read_row_cell_fast(db: &Database, row_id: u64, col: usize) -> Option<Value> {
     let (pid, slot) = db.rowid_map.get(row_id)?;
     let page = db.pager.get(pid)?;
-    // Safety: the row-id map is assumed to hold a valid slot index for the row.
     let entry = unsafe { page.slot_at_unchecked(slot) };
     let body = decode_body(&page.buf).ok()?;
     let region = body.regions.get(col)?;

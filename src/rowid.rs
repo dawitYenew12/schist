@@ -5,10 +5,7 @@
 //! access, and every `update`/`delete` by id resolves a row through this map.
 //!
 //! The map is built at decode time from the decoded data pages and is kept in
-//! sync by the mutation layer — *except* that compaction's in-place repack,
-//! which renumbers slot indices, is responsible for updating the slot indices
-//! stored here. That propagation is exactly the kind of cross-subsystem
-//! bookkeeping the surrounding code assumes is handled elsewhere.
+//! sync by the mutation layer.
 
 use crate::pager::PageId;
 use std::collections::BTreeMap;

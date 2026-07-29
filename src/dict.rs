@@ -15,10 +15,7 @@
 //! The page's [`Page::gen`](crate::pager::Page::gen) is its *generation*. Every
 //! time the page's buffer is replaced — because the dictionary grew past the
 //! page's capacity and had to be rewritten into a larger buffer — the
-//! generation is bumped and the previous buffer is freed. Anything that cached
-//! a raw pointer into the old buffer (the index cache's value-bytes fast path)
-//! is responsible for re-binding to the new generation; that re-binding is the
-//! cross-subsystem invariant the rest of the engine assumes is handled.
+//! generation is bumped and the previous buffer is freed.
 
 use crate::error::Result;
 use crate::pager::{PageId, PageKind, Pager};
@@ -85,9 +82,8 @@ impl Dict {
 
     /// Intern a byte string, returning its id. If the string is new and the
     /// page slab cannot hold it, the page is rewritten into a larger slab
-    /// (which bumps the generation and frees the previous buffer). A routine
-    /// intern that fits writes into the existing slab in place, so the buffer
-    /// (and therefore any cached pointers into it) stays put.
+    /// (which bumps the generation). A routine intern that fits writes into
+    /// the existing slab in place.
     pub fn intern(&mut self, pager: &mut Pager, bytes: &[u8]) -> Result<u32> {
         if let Some(id) = self.by_bytes.get(bytes).copied() {
             return Ok(id);
@@ -127,7 +123,7 @@ impl Dict {
 
     /// Grow the dictionary page: allocate a new slab of doubled capacity, copy
     /// every entry into it packed contiguously in id order, and replace the
-    /// page's buffer. This frees the previous slab and bumps the generation.
+    /// page's buffer.
     pub fn grow(&mut self, pager: &mut Pager) -> Result<()> {
         self.capacity = self.capacity.saturating_mul(2);
         let mut buf = vec![0u8; self.capacity];

@@ -10,10 +10,7 @@
 //!   page.
 //!
 //! [`compact`] walks the data pages and applies whichever operation each page
-//! needs. The row-id map is the structure that tells every other subsystem
-//! where a row lives; when compaction renumbers slot indices, the row-id map is
-//! expected to be brought along. That propagation is handled by the layer that
-//! drives compaction.
+//! needs.
 
 use crate::error::{Error, Result};
 use crate::format::{cell_width, decode_body, encode_body, encode_cell, ColumnRegion, DataPageBody};
@@ -64,9 +61,7 @@ fn has_tombstones(db: &Database, pid: PageId) -> bool {
 }
 
 /// Remove tombstoned slots from a page, compacting live rows to the front and
-/// rebuilding the slot directory over only the live rows. The row-id map is
-/// *not* updated here; the caller is responsible for renumbering slot indices
-/// in the row-id map to match the compacted layout.
+/// rebuilding the slot directory over only the live rows.
 pub fn repack(db: &mut Database, pid: PageId) -> Result<()> {
     let (body, slots) = {
         let page = db
