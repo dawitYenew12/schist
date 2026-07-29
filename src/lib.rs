@@ -108,6 +108,7 @@ pub mod value;
 pub mod varint;
 pub mod verify;
 pub mod wal;
+pub mod welford;
 pub mod wire;
 pub mod window;
 pub mod zonemap;
