@@ -54,6 +54,7 @@ pub mod script;
 pub mod sort;
 pub mod value;
 pub mod verify;
+pub mod wal;
 pub mod window;
 pub mod zonemap;
 pub mod dict;
